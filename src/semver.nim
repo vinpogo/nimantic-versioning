@@ -4,6 +4,7 @@ import std/strutils
 
 type
   BumpLevel* = enum
+    blIgnore
     blNone
     blPatch
     blMinor
@@ -36,6 +37,8 @@ proc bump*(v: SemVer, level: BumpLevel): SemVer =
     SemVer(major: v.major, minor: v.minor, patch: v.patch + 1)
   of blNone:
     v
+  of blIgnore:
+    v
 
 proc `$`*(level: BumpLevel): string =
   case level
@@ -43,6 +46,7 @@ proc `$`*(level: BumpLevel): string =
   of blMinor: "minor"
   of blPatch: "patch"
   of blNone: "none"
+  of blIgnore: "ignore"
 
 proc parseBumpLevel*(s: string): BumpLevel =
   case s.strip().toLowerAscii()
@@ -54,5 +58,7 @@ proc parseBumpLevel*(s: string): BumpLevel =
     blPatch
   of "none":
     blNone
+  of "ignore":
+    blIgnore
   else:
     raise newException(ValueError, "Invalid bump level: " & s)

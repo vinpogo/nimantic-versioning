@@ -6,8 +6,12 @@ import ./semver
 const DefaultConfig* = """; nimantic-versioning configuration
 ;
 ; Maps a Conventional Commits type to a semantic version bump.
-; Allowed values: major, minor, patch, none
+; Allowed values: major, minor, patch, none, ignore
 ;   - "none" still shows up in the changelog but does not bump the version.
+;   - "ignore" is skipped entirely: no change file is recorded and it never
+;     shows up in the changelog. Used for the "version" type, which is what
+;     `bump --commit` uses for its own release commits, so they don't get
+;     picked up as a pending change on the next `bump`.
 ;   - a commit type not listed here is rejected by the commit-msg hook.
 ; Regardless of this mapping, a commit marked as breaking (`feat!: ...` or a
 ; `BREAKING CHANGE:` footer) always bumps `major`.
@@ -24,6 +28,7 @@ chore = none
 test = none
 build = none
 ci = none
+version = ignore
 """
 
 type Config* = object

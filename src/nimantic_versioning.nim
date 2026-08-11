@@ -86,6 +86,11 @@ proc cmdRecordCommit(repoRoot: string) =
     stderr.writeLine("nimantic-versioning: skipping commit: " & typeErr)
     return
 
+  if bumpLevel == blIgnore:
+    # e.g. `version: ...` commits made by `bump --commit` itself, or other
+    # types explicitly configured as "ignore" - no change file, no amend.
+    return
+
   let path = writeChangeFile(
     repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage
   )
@@ -130,7 +135,7 @@ proc cmdBump(repoRoot: string, doCommit, doTag, dryRun: bool) =
     gitAdd(repoRoot, nimblePath)
     gitAdd(repoRoot, changelogPath)
     gitAdd(repoRoot, changesDir(repoRoot))
-    gitCommit(repoRoot, "chore(release): v" & $next)
+    gitCommit(repoRoot, "version: v" & $next)
     echo "Created release commit."
 
   if doTag:

@@ -61,7 +61,7 @@ When you're ready to cut a release:
 ```sh
 nimantic_versioning bump             # updates the .nimble version + CHANGELOG.md
 nimantic_versioning bump --dry-run   # preview without writing anything
-nimantic_versioning bump --commit    # also creates a `chore(release): vX.Y.Z` commit
+nimantic_versioning bump --commit    # also creates a `version: vX.Y.Z` commit
 nimantic_versioning bump --tag       # also creates a matching `vX.Y.Z` git tag
 ```
 
@@ -77,7 +77,12 @@ commits since the last release), it exits without touching anything.
 
 `.nimantic-versioning/config.ini` maps each Conventional Commit type to a
 bump level. `none` means the type is valid and still shows up in the
-changelog, but doesn't bump the version by itself.
+changelog, but doesn't bump the version by itself. `ignore` means the type
+is valid but is skipped entirely — no change file is recorded and it never
+appears in the changelog. This is used for the `version` type, which is the
+commit type `bump --commit` uses for its own release commits, so running
+`bump` doesn't cause the release commit itself to show up as a pending
+change the next time you run `bump`.
 
 ```ini
 [types]
@@ -92,6 +97,7 @@ chore = none
 test = none
 build = none
 ci = none
+version = ignore
 ```
 
 Any commit type not listed here is rejected by the `commit-msg` hook. Add

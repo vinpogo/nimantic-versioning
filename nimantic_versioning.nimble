@@ -11,3 +11,9 @@ bin           = @["nimantic_versioning"]
 # Dependencies
 
 requires "nim >= 2.2.10"
+
+# Tasks
+
+task test, "Build the binary and run end-to-end tests":
+  exec "nimble build"
+  exec "nim c -r --hints:off --path:src tests/test_e2e.nim"

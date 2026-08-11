@@ -1,2 +1,4 @@
 nimantic_versioning
 nimcache/
+testRepo/
+tests/test_e2e

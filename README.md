@@ -103,6 +103,17 @@ version = ignore
 Any commit type not listed here is rejected by the `commit-msg` hook. Add
 your own types (and adjust bump levels) as needed.
 
+## Testing
+
+```sh
+nimble test
+```
+
+This builds the binary, then runs `tests/test_e2e.nim`, an end-to-end suite
+that drives real `git` + `nimantic_versioning` invocations against throwaway
+repos created under `testRepo/` (gitignored). Each test starts from a fresh
+repo, so it's always safe to delete `testRepo/` between runs.
+
 ## CLI reference
 
 ```

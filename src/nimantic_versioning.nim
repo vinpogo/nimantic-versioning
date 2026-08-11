@@ -74,6 +74,16 @@ proc cmdRecordCommit(repoRoot: string) =
   ## commit that was just created and folds it into that same commit via a
   ## guarded amend (see the `post-commit` hook script for the re-entrancy
   ## guard).
+  if isRebaseInProgress(repoRoot):
+    # Amending here would fight with the rebase sequencer's own bookkeeping
+    # (see `isRebaseInProgress`). Leave existing notes untouched; review
+    # `.nimantic-versioning/changes` once the rebase completes if any
+    # reworded commits should have their notes updated.
+    stderr.writeLine(
+      "nimantic-versioning: skipping change-note recording during an in-progress rebase"
+    )
+    return
+
   let raw = gitLastCommitMessage(repoRoot)
   let (ok, err, parsed) = parseCommitMessage(raw)
   if not ok:
@@ -86,24 +96,23 @@ proc cmdRecordCommit(repoRoot: string) =
     stderr.writeLine("nimantic-versioning: skipping commit: " & typeErr)
     return
 
-  # A commit's parent hash is stable across `commit --amend` (only the
-  # commit's own hash changes), so it identifies "the same logical commit"
-  # even after amending. If a note already exists for this position in
-  # history, this call is amending that commit rather than recording a new
-  # one - replace it (or, for an ignored type, simply drop it) instead of
-  # piling up a duplicate.
-  let parentHash = gitParentHash(repoRoot)
-  let existing = findChangeFileForParent(repoRoot, parentHash)
+  # If HEAD's own diff already contains a change-note file, this call is
+  # amending a commit that was already recorded rather than a brand-new
+  # commit - remove the stale note (whatever its previously recorded type
+  # was) before writing a fresh one. Checking the commit's actual diff
+  # (rather than tracking hashes) also means a reword that changes the
+  # commit's type (e.g. `fix:` -> `feat:`) is handled correctly for free.
   var dirty = false
-
-  if existing.len > 0:
-    removeFile(existing)
-    dirty = true
+  for path in gitHeadChangedPaths(repoRoot):
+    if path.startsWith(ChangesRelPrefix) and path.endsWith(".txt"):
+      let full = repoRoot / path
+      if fileExists(full):
+        removeFile(full)
+        dirty = true
 
   if bumpLevel != blIgnore:
     discard writeChangeFile(
-      repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage,
-      parentHash,
+      repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage
     )
     dirty = true
 

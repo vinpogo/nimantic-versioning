@@ -1,0 +1,6 @@
+type=fix
+bump=patch
+breaking=false
+parent=30f83e2ab4618b189daec86bc84c5c03186b340d
+===
+fix(hooks): dedupe change notes across commit amends

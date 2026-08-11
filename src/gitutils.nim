@@ -26,6 +26,16 @@ proc gitLastCommitMessage*(repoRoot: string): string =
   ## Full message (subject + body + footers) of the current HEAD commit.
   runGit(@["-C", repoRoot, "log", "-1", "--pretty=%B"])
 
+proc gitParentHash*(repoRoot: string): string =
+  ## Hash of HEAD's parent commit, or "" if HEAD is the repository's root
+  ## commit. Unlike a commit's own hash, this stays the same across any
+  ## number of `commit --amend`s, so it can be used to recognize "this is
+  ## still the same logical commit, just amended" across post-commit events.
+  try:
+    runGit(@["-C", repoRoot, "rev-parse", "HEAD^"]).strip()
+  except IOError:
+    ""
+
 proc gitAmendNoVerify*(repoRoot: string) =
   ## Folds currently staged changes into HEAD without re-running hooks other
   ## than `post-commit` (which the caller is responsible for guarding against

@@ -86,15 +86,31 @@ proc cmdRecordCommit(repoRoot: string) =
     stderr.writeLine("nimantic-versioning: skipping commit: " & typeErr)
     return
 
-  if bumpLevel == blIgnore:
-    # e.g. `version: ...` commits made by `bump --commit` itself, or other
-    # types explicitly configured as "ignore" - no change file, no amend.
+  # A commit's parent hash is stable across `commit --amend` (only the
+  # commit's own hash changes), so it identifies "the same logical commit"
+  # even after amending. If a note already exists for this position in
+  # history, this call is amending that commit rather than recording a new
+  # one - replace it (or, for an ignored type, simply drop it) instead of
+  # piling up a duplicate.
+  let parentHash = gitParentHash(repoRoot)
+  let existing = findChangeFileForParent(repoRoot, parentHash)
+  var dirty = false
+
+  if existing.len > 0:
+    removeFile(existing)
+    dirty = true
+
+  if bumpLevel != blIgnore:
+    discard writeChangeFile(
+      repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage,
+      parentHash,
+    )
+    dirty = true
+
+  if not dirty:
     return
 
-  let path = writeChangeFile(
-    repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage
-  )
-  gitAdd(repoRoot, path)
+  gitAdd(repoRoot, changesDir(repoRoot))
   putEnv("NIMANTIC_VERSIONING_AMENDING", "1")
   gitAmendNoVerify(repoRoot)
 

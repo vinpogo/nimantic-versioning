@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0] - 2026-08-11
+
+### Documentation
+- add readme
+
+### Features
+- skip release commits via ignore bump level
+
+### Fixes
+- dedupe change notes across commit amends
+
+### Tests
+- add end-to-end test suite
+
+### Refactoring
+- dedupe change notes via commit diff, not parent hash
+
 ## [0.2.1] - 2026-08-11
 
 ### Fixes

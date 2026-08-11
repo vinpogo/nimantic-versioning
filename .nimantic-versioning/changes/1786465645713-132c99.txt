@@ -1,5 +1,0 @@
-type=refactor
-bump=patch
-breaking=false
-===
-refactor(hooks): dedupe change notes via commit diff, not parent hash

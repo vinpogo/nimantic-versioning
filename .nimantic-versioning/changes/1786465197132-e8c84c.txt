@@ -1,6 +1,0 @@
-type=test
-bump=none
-breaking=false
-parent=888a1cae3837cf7477f927f1e5f57e98c684bb5d
-===
-test: add end-to-end test suite

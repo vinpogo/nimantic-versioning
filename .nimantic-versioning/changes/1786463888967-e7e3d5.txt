@@ -1,5 +1,0 @@
-type=feat
-bump=minor
-breaking=false
-===
-feat(config): skip release commits via ignore bump level

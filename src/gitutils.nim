@@ -21,3 +21,13 @@ proc gitCommit*(repoRoot: string, message: string) =
 
 proc gitTag*(repoRoot: string, tag: string) =
   discard runGit(@["-C", repoRoot, "tag", tag])
+
+proc gitLastCommitMessage*(repoRoot: string): string =
+  ## Full message (subject + body + footers) of the current HEAD commit.
+  runGit(@["-C", repoRoot, "log", "-1", "--pretty=%B"])
+
+proc gitAmendNoVerify*(repoRoot: string) =
+  ## Folds currently staged changes into HEAD without re-running hooks other
+  ## than `post-commit` (which the caller is responsible for guarding against
+  ## re-entrancy, e.g. via an environment variable).
+  discard runGit(@["-C", repoRoot, "commit", "--amend", "--no-edit", "--no-verify"])

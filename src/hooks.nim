@@ -1,4 +1,12 @@
-## Installs the `commit-msg` Git hook that delegates to this binary.
+## Installs the Git hooks that delegate to this binary.
+##
+## Two hooks are used because a commit's tree is snapshotted before
+## `commit-msg` runs, so a file written and staged there does *not* make it
+## into that commit (only `pre-commit` can still influence the tree at that
+## point). Instead:
+##   - `commit-msg` only validates the message and can reject the commit.
+##   - `post-commit` writes the bump-note file for the commit that was just
+##     created and folds it in via a guarded `commit --amend`.
 
 import std/os
 
@@ -8,23 +16,37 @@ const CommitMsgHook = """#!/bin/sh
 exec nimantic_versioning check-commit-msg "$1"
 """
 
-proc installHooks*(repoRoot: string, force: bool) =
-  let hooksDir = repoRoot / ".git" / "hooks"
-  if not dirExists(hooksDir):
-    raise newException(IOError, "No .git/hooks directory found at " & hooksDir)
+const PostCommitHook = """#!/bin/sh
+# Installed by nimantic-versioning. Do not edit by hand;
+# re-run `nimantic_versioning install-hooks --force` to regenerate.
+#
+# Guard against re-entrancy: `record-commit` folds its note file into HEAD via
+# `commit --amend`, which triggers this same hook again.
+if [ -n "$NIMANTIC_VERSIONING_AMENDING" ]; then
+  exit 0
+fi
+exec nimantic_versioning record-commit
+"""
 
-  let hookPath = hooksDir / "commit-msg"
+const ExecutablePerms = {
+  fpUserRead, fpUserWrite, fpUserExec, fpGroupRead, fpGroupExec, fpOthersRead,
+  fpOthersExec,
+}
+
+proc writeHook(hooksDir, name, content: string, force: bool) =
+  let hookPath = hooksDir / name
   if fileExists(hookPath) and not force:
     raise newException(
       IOError,
       "Hook already exists at " & hookPath & ". Re-run with --force to overwrite.",
     )
+  writeFile(hookPath, content)
+  setFilePermissions(hookPath, ExecutablePerms)
 
-  writeFile(hookPath, CommitMsgHook)
-  setFilePermissions(
-    hookPath,
-    {
-      fpUserRead, fpUserWrite, fpUserExec, fpGroupRead, fpGroupExec, fpOthersRead,
-      fpOthersExec,
-    },
-  )
+proc installHooks*(repoRoot: string, force: bool) =
+  let hooksDir = repoRoot / ".git" / "hooks"
+  if not dirExists(hooksDir):
+    raise newException(IOError, "No .git/hooks directory found at " & hooksDir)
+
+  writeHook(hooksDir, "commit-msg", CommitMsgHook, force)
+  writeHook(hooksDir, "post-commit", PostCommitHook, force)

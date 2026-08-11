@@ -17,8 +17,11 @@ nimantic-versioning - semantic versioning from Conventional Commits
 Usage:
   nimantic_versioning init
   nimantic_versioning install-hooks [--force]
-  nimantic_versioning check-commit-msg <path-to-message-file>
   nimantic_versioning bump [--commit] [--tag] [--dry-run]
+
+Invoked by installed hooks (not usually run by hand):
+  nimantic_versioning check-commit-msg <path-to-message-file>
+  nimantic_versioning record-commit
 """
 
 proc cmdInit(repoRoot: string) =
@@ -33,9 +36,27 @@ proc cmdInit(repoRoot: string) =
 
 proc cmdInstallHooks(repoRoot: string, force: bool) =
   installHooks(repoRoot, force)
-  echo "Installed commit-msg hook at ", repoRoot / ".git" / "hooks" / "commit-msg"
+  let hooksDir = repoRoot / ".git" / "hooks"
+  echo "Installed commit-msg hook at ", hooksDir / "commit-msg"
+  echo "Installed post-commit hook at ", hooksDir / "post-commit"
+
+proc validateAndLookup(cfg: Config, parsed: ParsedCommit): (bool, string, BumpLevel) =
+  ## Returns `(ok, errorMessage, bumpLevel)`.
+  let (known, configuredLevel) = lookupType(cfg, parsed.commitType)
+  if not known:
+    let allowed = toSeq(cfg.types.keys).sorted().join(", ")
+    return (
+      false,
+      "unknown commit type '" & parsed.commitType & "'. Allowed types: " & allowed,
+      blNone,
+    )
+  let bumpLevel = if parsed.breaking: blMajor else: configuredLevel
+  (true, "", bumpLevel)
 
 proc cmdCheckCommitMsg(repoRoot: string, msgFilePath: string) =
+  ## Runs as the `commit-msg` hook. Only validates; the commit's tree is
+  ## already fixed by this point, so writing the bump-note file here would
+  ## not end up in the commit being created (see `record-commit`).
   let raw = readFile(msgFilePath)
   let (ok, err, parsed) = parseCommitMessage(raw)
   if not ok:
@@ -43,25 +64,34 @@ proc cmdCheckCommitMsg(repoRoot: string, msgFilePath: string) =
     quit(1)
 
   let cfg = loadConfig(repoRoot)
-  let (known, configuredLevel) = lookupType(cfg, parsed.commitType)
-  if not known:
-    let allowed = toSeq(cfg.types.keys).sorted().join(", ")
-    stderr.writeLine(
-      "nimantic-versioning: unknown commit type '" & parsed.commitType &
-        "'. Allowed types: " & allowed
-    )
+  let (validType, typeErr, _) = validateAndLookup(cfg, parsed)
+  if not validType:
+    stderr.writeLine("nimantic-versioning: " & typeErr)
     quit(1)
 
-  let bumpLevel = if parsed.breaking: blMajor else: configuredLevel
+proc cmdRecordCommit(repoRoot: string) =
+  ## Runs as the `post-commit` hook. Writes the bump-note file for the
+  ## commit that was just created and folds it into that same commit via a
+  ## guarded amend (see the `post-commit` hook script for the re-entrancy
+  ## guard).
+  let raw = gitLastCommitMessage(repoRoot)
+  let (ok, err, parsed) = parseCommitMessage(raw)
+  if not ok:
+    stderr.writeLine("nimantic-versioning: skipping unparseable commit: " & err)
+    return
+
+  let cfg = loadConfig(repoRoot)
+  let (validType, typeErr, bumpLevel) = validateAndLookup(cfg, parsed)
+  if not validType:
+    stderr.writeLine("nimantic-versioning: skipping commit: " & typeErr)
+    return
+
   let path = writeChangeFile(
     repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage
   )
-  try:
-    gitAdd(repoRoot, path)
-  except IOError as e:
-    stderr.writeLine(
-      "nimantic-versioning: warning: failed to stage " & path & ": " & e.msg
-    )
+  gitAdd(repoRoot, path)
+  putEnv("NIMANTIC_VERSIONING_AMENDING", "1")
+  gitAmendNoVerify(repoRoot)
 
 proc cmdBump(repoRoot: string, doCommit, doTag, dryRun: bool) =
   let entries = readChangeFiles(repoRoot)
@@ -133,6 +163,8 @@ when isMainModule:
         )
         quit(1)
       cmdCheckCommitMsg(repoRoot, args[1])
+    of "record-commit":
+      cmdRecordCommit(repoRoot)
     of "bump":
       cmdBump(repoRoot, "--commit" in args, "--tag" in args, "--dry-run" in args)
     else:

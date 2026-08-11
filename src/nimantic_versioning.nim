@@ -1,5 +1,143 @@
-# This is just an example to get you started. A typical binary package
-# uses this file as the main entry point of the application.
+## nimantic-versioning: semantic versioning for Nim projects, driven by
+## Conventional Commits and wired into Git via a `commit-msg` hook.
+
+import std/[os, strutils, sequtils, algorithm, tables]
+import ./gitutils
+import ./config
+import ./commitparser
+import ./changes
+import ./nimblefile
+import ./changelog
+import ./hooks
+import ./semver
+
+const Usage = """
+nimantic-versioning - semantic versioning from Conventional Commits
+
+Usage:
+  nimantic_versioning init
+  nimantic_versioning install-hooks [--force]
+  nimantic_versioning check-commit-msg <path-to-message-file>
+  nimantic_versioning bump [--commit] [--tag] [--dry-run]
+"""
+
+proc cmdInit(repoRoot: string) =
+  createDir(changesDir(repoRoot))
+  let cfgPath = configPath(repoRoot)
+  if fileExists(cfgPath):
+    echo "Config already exists at ", cfgPath
+  else:
+    writeFile(cfgPath, DefaultConfig)
+    echo "Created ", cfgPath
+  echo "Run `nimantic_versioning install-hooks` to wire up the commit-msg hook."
+
+proc cmdInstallHooks(repoRoot: string, force: bool) =
+  installHooks(repoRoot, force)
+  echo "Installed commit-msg hook at ", repoRoot / ".git" / "hooks" / "commit-msg"
+
+proc cmdCheckCommitMsg(repoRoot: string, msgFilePath: string) =
+  let raw = readFile(msgFilePath)
+  let (ok, err, parsed) = parseCommitMessage(raw)
+  if not ok:
+    stderr.writeLine("nimantic-versioning: invalid commit message: " & err)
+    quit(1)
+
+  let cfg = loadConfig(repoRoot)
+  let (known, configuredLevel) = lookupType(cfg, parsed.commitType)
+  if not known:
+    let allowed = toSeq(cfg.types.keys).sorted().join(", ")
+    stderr.writeLine(
+      "nimantic-versioning: unknown commit type '" & parsed.commitType &
+        "'. Allowed types: " & allowed
+    )
+    quit(1)
+
+  let bumpLevel = if parsed.breaking: blMajor else: configuredLevel
+  let path = writeChangeFile(
+    repoRoot, parsed.commitType, bumpLevel, parsed.breaking, parsed.rawMessage
+  )
+  try:
+    gitAdd(repoRoot, path)
+  except IOError as e:
+    stderr.writeLine(
+      "nimantic-versioning: warning: failed to stage " & path & ": " & e.msg
+    )
+
+proc cmdBump(repoRoot: string, doCommit, doTag, dryRun: bool) =
+  let entries = readChangeFiles(repoRoot)
+  if entries.len == 0:
+    echo "No pending changes found in .nimantic-versioning/changes. Nothing to bump."
+    return
+
+  var overall = blNone
+  for e in entries:
+    if e.bumpLevel > overall:
+      overall = e.bumpLevel
+
+  if overall == blNone:
+    echo "All pending changes are non-version-impacting (bump=none). Nothing to bump."
+    return
+
+  let nimblePath = findNimbleFile(repoRoot)
+  let current = readVersion(nimblePath)
+  let next = bump(current, overall)
+  let section = buildSection(next, entries)
+  let changelogPath = repoRoot / "CHANGELOG.md"
+
+  echo "Bumping version: ", $current, " -> ", $next, " (", $overall, ")"
+  if dryRun:
+    echo "\n--- CHANGELOG entry (dry run, nothing written) ---"
+    echo section
+    return
+
+  writeVersion(nimblePath, next)
+  prependToChangelog(changelogPath, section)
+  deleteChangeFiles(entries)
+  echo "Updated ", nimblePath
+  echo "Updated ", changelogPath
+
+  if doCommit:
+    gitAdd(repoRoot, nimblePath)
+    gitAdd(repoRoot, changelogPath)
+    gitAdd(repoRoot, changesDir(repoRoot))
+    gitCommit(repoRoot, "chore(release): v" & $next)
+    echo "Created release commit."
+
+  if doTag:
+    gitTag(repoRoot, "v" & $next)
+    echo "Created tag v" & $next
 
 when isMainModule:
-  echo("Hello, World!")
+  let args = commandLineParams()
+  if args.len == 0:
+    echo Usage
+    quit(1)
+
+  var repoRoot: string
+  try:
+    repoRoot = findRepoRoot()
+  except IOError as e:
+    stderr.writeLine("nimantic-versioning: " & e.msg)
+    quit(1)
+
+  try:
+    case args[0]
+    of "init":
+      cmdInit(repoRoot)
+    of "install-hooks":
+      cmdInstallHooks(repoRoot, "--force" in args)
+    of "check-commit-msg":
+      if args.len < 2:
+        stderr.writeLine(
+          "Usage: nimantic_versioning check-commit-msg <path-to-message-file>"
+        )
+        quit(1)
+      cmdCheckCommitMsg(repoRoot, args[1])
+    of "bump":
+      cmdBump(repoRoot, "--commit" in args, "--tag" in args, "--dry-run" in args)
+    else:
+      echo Usage
+      quit(1)
+  except IOError as e:
+    stderr.writeLine("nimantic-versioning: " & e.msg)
+    quit(1)

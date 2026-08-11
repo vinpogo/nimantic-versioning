@@ -1,5 +1,0 @@
-type=fix
-bump=patch
-breaking=false
-===
-fix: correct commit-msg tree-snapshot timing bug

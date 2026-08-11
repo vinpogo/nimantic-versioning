@@ -1,0 +1,5 @@
+type=docs
+bump=none
+breaking=false
+===
+docs: add readme

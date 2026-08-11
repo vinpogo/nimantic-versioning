@@ -1,0 +1,91 @@
+{
+  "private_files": [
+    "**/.env",
+    "**/.env.*",
+    "**/.envrc",
+    "**/*.pem",
+    "**/*.key",
+    "**/secrets/**",
+    "**/*secret*",
+  ],
+  "file_scan_exclusions": ["**/.env.*", "**/.envrc", "**/*.pem", "**/*.key"],
+  "lsp": {
+    "deno": {
+      "settings": {
+        "deno": {
+          "enable": true,
+          "unstable": true,
+        },
+      },
+    },
+    "nim": {
+      "binary": {
+        "path": "~/.local/share/mise/shims/nimlangserver",
+      },
+    },
+  },
+  "languages": {
+    "TypeScript": {
+      "language_servers": [
+        "deno",
+        "!vtsls",
+        "!typescript-language-server",
+        "!oxc",
+        "!oxlint",
+        "!oxfmt",
+      ],
+      "formatter": "language_server",
+    },
+    "TSX": {
+      "language_servers": [
+        "deno",
+        "!vtsls",
+        "!typescript-language-server",
+        "!oxc",
+        "!oxlint",
+        "!oxfmt",
+      ],
+      "formatter": "language_server",
+    },
+    "JavaScript": {
+      "language_servers": [
+        "deno",
+        "!vtsls",
+        "!typescript-language-server",
+        "!oxc",
+        "!oxlint",
+        "!oxfmt",
+      ],
+      "formatter": "language_server",
+    },
+    "JSDoc": {
+      "language_servers": [
+        "deno",
+        "!vtsls",
+        "!typescript-language-server",
+        "!oxc",
+        "!oxlint",
+        "!oxfmt",
+      ],
+      "formatter": "language_server",
+    },
+    "JSONC": {
+      "language_servers": ["!json-language-server", "!oxfmt"],
+    },
+    "JSON": {
+      "language_servers": ["!json-language-server", "!oxfmt"],
+    },
+    "Markdown": {
+      "language_servers": ["!oxfmt"],
+    },
+    "Nim": {
+      "format_on_save": "on",
+      "formatter": {
+        "external": {
+          "command": "scripts/format-nim.sh",
+          "arguments": ["-"],
+        },
+      },
+    },
+  },
+}

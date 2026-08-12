@@ -1,5 +1,0 @@
-type=feat
-bump=minor
-breaking=false
-===
-feat: add version command

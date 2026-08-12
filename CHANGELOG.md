@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.0] - 2026-08-12
+
+### Features
+- add version command
+
 ## [1.0.0] - 2026-08-12
 
 ### Breaking Changes

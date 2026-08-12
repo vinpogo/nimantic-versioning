@@ -1,3 +1,7 @@
+
+> [!WARNING]  
+> Repository moved to https://github.com/vinpogo/nimver
+
 # nimantic-versioning
 
 Semantic versioning for Nim projects, driven by [Conventional

@@ -28,7 +28,7 @@ Invoked by installed hooks (not usually run by hand):
 """
 
 proc cmdVersion() =
-  echo "nimantic_versioning ", NimblePkgVersion
+  echo NimblePkgVersion
 
 proc cmdInit(repoRoot: string) =
   createDir(changesDir(repoRoot))

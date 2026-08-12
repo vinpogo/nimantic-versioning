@@ -19,7 +19,7 @@ nimantic-versioning - semantic versioning from Conventional Commits
 Usage:
   nimantic_versioning init
   nimantic_versioning install-hooks [--force]
-  nimantic_versioning bump [--commit] [--tag] [--dry-run]
+  nimantic_versioning bump [--no-commit] [--no-tag] [--dry-run]
   nimantic_versioning version
 
 Invoked by installed hooks (not usually run by hand):
@@ -130,6 +130,8 @@ proc cmdRecordCommit(repoRoot: string) =
   gitAmendNoVerify(repoRoot)
 
 proc cmdBump(repoRoot: string, doCommit, doTag, dryRun: bool) =
+  ## `doCommit`/`doTag` are true by default at the call site; `--no-commit`
+  ## / `--no-tag` on the command line opt out of either one.
   let entries = readChangeFiles(repoRoot)
   if entries.len == 0:
     echo "No pending changes found in .nimantic-versioning/changes. Nothing to bump."
@@ -170,8 +172,13 @@ proc cmdBump(repoRoot: string, doCommit, doTag, dryRun: bool) =
     echo "Created release commit."
 
   if doTag:
-    gitTag(repoRoot, "v" & $next)
-    echo "Created tag v" & $next
+    if not doCommit:
+      # Without a release commit, HEAD is still whatever it was before this
+      # run - tagging it as vX.Y.Z would mislabel an unrelated commit.
+      echo "Skipped tag: no release commit was created (pass --no-tag along with --no-commit)."
+    else:
+      gitTag(repoRoot, "v" & $next)
+      echo "Created tag v" & $next
 
 when isMainModule:
   let args = commandLineParams()
@@ -206,7 +213,12 @@ when isMainModule:
     of "record-commit":
       cmdRecordCommit(repoRoot)
     of "bump":
-      cmdBump(repoRoot, "--commit" in args, "--tag" in args, "--dry-run" in args)
+      cmdBump(
+        repoRoot,
+        not ("--no-commit" in args),
+        not ("--no-tag" in args),
+        "--dry-run" in args,
+      )
     else:
       echo Usage
       quit(1)

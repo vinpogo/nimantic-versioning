@@ -1,0 +1,5 @@
+type=feat
+bump=minor
+breaking=false
+===
+feat: commit and tag by default on bump

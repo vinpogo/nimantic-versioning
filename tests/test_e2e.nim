@@ -207,8 +207,15 @@ suite "end-to-end":
       "fix: b" in readFile(it) and "reworded" notin readFile(it)
     )
 
-  test "bump updates the .nimble version and changelog, then clears notes":
-    let dir = freshRepo("bump-basic")
+  test "bump with no pending changes is a no-op":
+    let dir = freshRepo("bump-empty")
+    let (output, code) = run("nimantic_versioning bump", dir)
+    check code == 0
+    check "Nothing to bump" in output
+    check "0.1.0" in readFile(dir / "pkg.nimble")
+
+  test "bump commits and tags the release by default":
+    let dir = freshRepo("bump-defaults")
     discard commitFile(dir, "a.txt", "hi", "feat: add feature")
     let (output, code) = run("nimantic_versioning bump", dir)
     check code == 0
@@ -217,26 +224,66 @@ suite "end-to-end":
     check fileExists(dir / "CHANGELOG.md")
     check changeNotes(dir).len == 0
 
-  test "bump with no pending changes is a no-op":
-    let dir = freshRepo("bump-empty")
-    let (output, code) = run("nimantic_versioning bump", dir)
-    check code == 0
-    check "Nothing to bump" in output
-    check "0.1.0" in readFile(dir / "pkg.nimble")
+    let (subject, _) = run("git log -1 --pretty=%s", dir)
+    check subject.strip() == "version: v0.2.0"
+    let (tags, _) = run("git tag", dir)
+    check "v0.2.0" in tags
 
   test "bump --commit's release commit is not recorded as a pending change":
     let dir = freshRepo("bump-commit")
     discard commitFile(dir, "a.txt", "hi", "feat: add feature")
-    let (_, code) = run("nimantic_versioning bump --commit", dir)
+    let (_, code) = run("nimantic_versioning bump", dir)
     check code == 0
     let (subject, _) = run("git log -1 --pretty=%s", dir)
     check subject.strip() == "version: v0.2.0"
     check changeNotes(dir).len == 0
 
-  test "bump --tag creates a matching tag":
+  test "bump --no-commit --no-tag only touches files, leaving history untouched":
+    let dir = freshRepo("bump-no-commit-no-tag")
+    discard commitFile(dir, "a.txt", "hi", "feat: add feature")
+    let (headBefore, _) = run("git rev-parse HEAD", dir)
+
+    let (output, code) = run("nimantic_versioning bump --no-commit --no-tag", dir)
+    check code == 0
+    check "0.1.0 -> 0.2.0" in output
+    check "0.2.0" in readFile(dir / "pkg.nimble")
+    check fileExists(dir / "CHANGELOG.md")
+    check changeNotes(dir).len == 0
+
+    let (headAfter, _) = run("git rev-parse HEAD", dir)
+    check headBefore.strip() == headAfter.strip()
+    let (tags, _) = run("git tag", dir)
+    check tags.strip().len == 0
+    check run("git status --porcelain", dir).output.strip().len > 0
+
+  test "bump --no-tag commits without creating a tag":
+    let dir = freshRepo("bump-no-tag")
+    discard commitFile(dir, "a.txt", "hi", "fix: patch it")
+    let (_, code) = run("nimantic_versioning bump --no-tag", dir)
+    check code == 0
+    let (subject, _) = run("git log -1 --pretty=%s", dir)
+    check subject.strip() == "version: v0.1.1"
+    let (tags, _) = run("git tag", dir)
+    check tags.strip().len == 0
+
+  test "bump --no-commit alone skips the tag too":
+    let dir = freshRepo("bump-no-commit-only")
+    discard commitFile(dir, "a.txt", "hi", "fix: patch it")
+    let (headBefore, _) = run("git rev-parse HEAD", dir)
+
+    let (output, code) = run("nimantic_versioning bump --no-commit", dir)
+    check code == 0
+    check "Skipped tag" in output
+
+    let (headAfter, _) = run("git rev-parse HEAD", dir)
+    check headBefore.strip() == headAfter.strip()
+    let (tags, _) = run("git tag", dir)
+    check tags.strip().len == 0
+
+  test "bump tags the release by default":
     let dir = freshRepo("bump-tag")
     discard commitFile(dir, "a.txt", "hi", "fix: patch it")
-    let (_, code) = run("nimantic_versioning bump --commit --tag", dir)
+    let (_, code) = run("nimantic_versioning bump", dir)
     check code == 0
     let (tags, _) = run("git tag", dir)
     check "v0.1.1" in tags

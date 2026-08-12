@@ -59,11 +59,17 @@ BREAKING CHANGE: describe the break
 When you're ready to cut a release:
 
 ```sh
-nimantic_versioning bump             # updates the .nimble version + CHANGELOG.md
-nimantic_versioning bump --dry-run   # preview without writing anything
-nimantic_versioning bump --commit    # also creates a `version: vX.Y.Z` commit
-nimantic_versioning bump --tag       # also creates a matching `vX.Y.Z` git tag
+nimantic_versioning bump                       # updates .nimble + CHANGELOG.md, commits, and tags
+nimantic_versioning bump --dry-run             # preview without writing anything
+nimantic_versioning bump --no-commit           # update files, but skip the commit (and the tag)
+nimantic_versioning bump --no-tag              # commit the release, but skip the git tag
+nimantic_versioning bump --no-commit --no-tag  # only touch .nimble/CHANGELOG.md, no git activity
 ```
+
+By default `bump` both creates a `version: vX.Y.Z` release commit and tags it
+`vX.Y.Z`. Pass `--no-commit` and/or `--no-tag` to opt out of either. Tagging
+requires a release commit to point at, so `--no-commit` alone (without
+`--no-tag`) skips the tag too, with a message explaining why.
 
 `bump` reads every pending file in `.nimantic-versioning/changes/`, takes the
 highest bump level among them (major > minor > patch > none — levels are
@@ -80,9 +86,9 @@ bump level. `none` means the type is valid and still shows up in the
 changelog, but doesn't bump the version by itself. `ignore` means the type
 is valid but is skipped entirely — no change file is recorded and it never
 appears in the changelog. This is used for the `version` type, which is the
-commit type `bump --commit` uses for its own release commits, so running
-`bump` doesn't cause the release commit itself to show up as a pending
-change the next time you run `bump`.
+commit type `bump` uses for its own release commits (unless `--no-commit`
+is passed), so running `bump` doesn't cause the release commit itself to
+show up as a pending change the next time you run `bump`.
 
 ```ini
 [types]
@@ -119,7 +125,7 @@ repo, so it's always safe to delete `testRepo/` between runs.
 ```
 nimantic_versioning init
 nimantic_versioning install-hooks [--force]
-nimantic_versioning bump [--commit] [--tag] [--dry-run]
+nimantic_versioning bump [--no-commit] [--no-tag] [--dry-run]
 nimantic_versioning version
 
 Invoked by installed hooks (not usually run by hand):

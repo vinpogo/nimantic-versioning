@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0] - 2026-08-12
+
+### Fixes
+- print only the version number
+
+### Features
+- commit and tag by default on bump
+
 ## [1.1.0] - 2026-08-12
 
 ### Features

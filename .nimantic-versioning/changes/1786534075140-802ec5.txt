@@ -1,5 +1,0 @@
-type=fix
-bump=patch
-breaking=false
-===
-fix: print only the version number

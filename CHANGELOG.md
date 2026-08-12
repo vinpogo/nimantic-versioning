@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0] - 2026-08-12
+
+### Breaking Changes
+- declare v1.0.0
+
+### Chores
+- add MIT license
+
 ## [0.3.0] - 2026-08-11
 
 ### Documentation

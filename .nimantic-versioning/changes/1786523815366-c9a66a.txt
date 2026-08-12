@@ -1,5 +1,0 @@
-type=chore
-bump=major
-breaking=true
-===
-chore!: declare v1.0.0

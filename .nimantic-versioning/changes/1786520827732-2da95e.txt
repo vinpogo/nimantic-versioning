@@ -1,0 +1,5 @@
+type=chore
+bump=none
+breaking=false
+===
+chore: add MIT license

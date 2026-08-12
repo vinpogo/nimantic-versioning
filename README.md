@@ -120,6 +120,7 @@ repo, so it's always safe to delete `testRepo/` between runs.
 nimantic_versioning init
 nimantic_versioning install-hooks [--force]
 nimantic_versioning bump [--commit] [--tag] [--dry-run]
+nimantic_versioning version
 
 Invoked by installed hooks (not usually run by hand):
   nimantic_versioning check-commit-msg <path-to-message-file>

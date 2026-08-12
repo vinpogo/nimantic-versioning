@@ -11,6 +11,8 @@ import ./changelog
 import ./hooks
 import ./semver
 
+const NimblePkgVersion {.strdefine.} = "unknown"
+
 const Usage = """
 nimantic-versioning - semantic versioning from Conventional Commits
 
@@ -18,11 +20,15 @@ Usage:
   nimantic_versioning init
   nimantic_versioning install-hooks [--force]
   nimantic_versioning bump [--commit] [--tag] [--dry-run]
+  nimantic_versioning version
 
 Invoked by installed hooks (not usually run by hand):
   nimantic_versioning check-commit-msg <path-to-message-file>
   nimantic_versioning record-commit
 """
+
+proc cmdVersion() =
+  echo "nimantic_versioning ", NimblePkgVersion
 
 proc cmdInit(repoRoot: string) =
   createDir(changesDir(repoRoot))
@@ -172,6 +178,10 @@ when isMainModule:
   if args.len == 0:
     echo Usage
     quit(1)
+
+  if args[0] in ["version", "--version", "-v"]:
+    cmdVersion()
+    quit(0)
 
   var repoRoot: string
   try:
